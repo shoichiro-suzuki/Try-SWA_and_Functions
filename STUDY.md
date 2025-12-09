@@ -53,7 +53,7 @@ cd api
 func new --template "HTTP trigger" --name hello
 ```
 
-これで `api/hello/__init__.py` などができます。
+これで `function_app.py` に `hello` 関数が作成される。
 
 ### 2-2. ローカルで API をテスト
 
@@ -81,7 +81,7 @@ const message = ref('loading...')
 onMounted(async () => {
   const res = await fetch('/api/hello')
   const data = await res.json()
-  message.value = data  // 実際の戻り値形に合わせて調整
+  message.value = data  // 実際の戻り値形に合わせて調整(※１)
 })
 </script>
 
@@ -90,6 +90,39 @@ onMounted(async () => {
   <p>API says: {{ message }}</p>
 </template>
 ```
+
+### ※１の調整方法
+今のままだと **フロントの書き方と、Python 関数の戻り値の形式がズレている** 可能性が高い。
+今の Python のテンプレは「文字列を返している」はず
+
+`function_app.py` がテンプレのままだと、だいたいこうなってるはず：
+
+```python
+import azure.functions as func
+
+app = func.FunctionApp()
+
+@app.function_name(name="hello")
+@app.route(route="hello", auth_level=func.AuthLevel.ANONYMOUS)
+def hello(req: func.HttpRequest) -> func.HttpResponse:
+    return func.HttpResponse(
+        "This HTTP triggered function executed successfully.",
+        status_code=200
+    )
+```
+
+つまり、**返ってくるのは JSON じゃなくて「ただの文字列」**。
+
+この場合、フロント側はこう書くべき：
+
+```vue
+onMounted(async () => {
+  const res = await fetch('/api/hello')
+  const text = await res.text()   // ← json() じゃなくて text()
+  message.value = text
+})
+```
+
 
 ローカルで SPA と Functions を一緒に動かしたい場合は、
 後で SWA CLI を使うと「本番と同じ /api 経由」の挙動が再現しやすいです（今回は簡略化）。
